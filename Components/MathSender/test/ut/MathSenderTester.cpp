@@ -37,4 +37,15 @@ namespace MathModule {
     // TODO
   }
 
+  void MathSenderTester :: 
+    testDoMath(MathOp op)
+  {
+    // Pick values
+    const F32 val1 = 2.0;
+    const F32 val2 = 3.0;
+
+    // Send the command and pick command sequence number
+    const U32 cmdSeq = 10;
+  }
+
 }

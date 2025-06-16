@@ -61,6 +61,6 @@ Add requirements in the chart below
 |---|---|---|
 
 ## Change Log
-| Date | Description |
-|---|---|
-|---| Initial Draft |
+| Date | Description | Author
+|---|---|---|
+|06/09/25| Initial Draft | cchiu@oligo.space

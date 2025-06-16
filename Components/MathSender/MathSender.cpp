@@ -45,8 +45,8 @@ namespace MathModule {
 
   void MathSender ::
     DO_MATH_cmdHandler(
-        FwOpcodeType opCode,
-        U32 cmdSeq,
+        const FwOpcodeType opCode,
+        const U32 cmdSeq,
         F32 val1,
         MathModule::MathOp op,
         F32 val2

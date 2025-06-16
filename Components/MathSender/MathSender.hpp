@@ -39,7 +39,7 @@ namespace MathModule {
       //!
       //! Port for receiving the result
       void mathResultIn_handler(
-          FwIndexType portNum, //!< The port number
+          const NATIVE_INT_TYPE portNum, //!< The port number
           F32 result //!< The result of the operation
       ) override;
 
@@ -53,8 +53,8 @@ namespace MathModule {
       //!
       //! Do a math operation
       void DO_MATH_cmdHandler(
-          FwOpcodeType opCode, //!< The opcode
-          U32 cmdSeq, //!< The command sequence number
+          const FwOpcodeType opCode, //!< The opcode
+          const U32 cmdSeq, //!< The command sequence number
           F32 val1, //!< The first operand, 32-bit float
           MathModule::MathOp op, //!< The operation
           F32 val2 //!< The second operand, 32-bit float
