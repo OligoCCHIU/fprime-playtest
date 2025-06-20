@@ -24,7 +24,6 @@ LOGGER = logging.getLogger("FPrimeSender")
 def main():
     """Main function to parse arguments and run the commander."""
     parser = argparse.ArgumentParser(description='Send F\' commands over serial or Ethernet')
-    parser.add_argument('project_path', help='Path to the F\' project directory')
     parser.add_argument('deployment_folder', help='Name of the deployment folder')
     parser.add_argument('--port-type', choices=['serial', 'ethernet'], default='serial',
                       help='Type of port to use (default: serial)')
@@ -40,7 +39,7 @@ def main():
     setup_logging(args.debug)
     
     # Initialize F' GDS components
-    dictionary_path = os.path.join(args.project_path, f"build-artifacts/Linux/{args.deployment_folder}/dict/{args.deployment_folder}TopologyAppDictionary.xml")
+    dictionary_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), f"build-artifacts/Linux/{args.deployment_folder}/dict/{args.deployment_folder}TopologyAppDictionary.xml")
     
     try:
         dictionaries = load_dictionaries(dictionary_path)

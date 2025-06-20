@@ -14,14 +14,16 @@ import struct
 import threading
 import time
 
+LOGGER = logging.getLogger(__name__)
+
 # Add SatCat5 Python modules to path
 satcat5_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                            'satcat5/src/python')
 if os.path.exists(satcat5_path):
-    print(f"Adding SatCat5 Python modules to path: {satcat5_path}")
+    LOGGER.debug("Adding SatCat5 Python modules to path: %s", satcat5_path)
     sys.path.append(satcat5_path)
 else:
-    print(f"Error: SatCat5 Python modules not found at {satcat5_path}")
+    LOGGER.error("Error: SatCat5 Python modules not found at %s", satcat5_path)
     sys.exit(1)
 
 # Import SatCat5 modules
@@ -29,17 +31,17 @@ try:
     from satcat5_eth import mac2str, AsyncEthernetPort
     from satcat5_uart import AsyncSLIPPort
 except ImportError as e:
-    print(f"Error importing SatCat5 modules: {e}")
+    LOGGER.error("Error importing SatCat5 modules: %s", e)
     sys.exit(1)
 
 # Add F' virtual environment site-packages to Python path
 venv_site_packages = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                                  'fprime-venv/lib/python3.10/site-packages')
 if os.path.exists(venv_site_packages):
-    print(f"Adding virtual environment site-packages to Python path: {venv_site_packages}")
+    LOGGER.info("Adding virtual environment site-packages to Python path: %s", venv_site_packages)
     sys.path.insert(0, venv_site_packages)
 else:
-    print(f"Error: Virtual environment site-packages directory not found at {venv_site_packages}")
+    LOGGER.error("Error: Virtual environment site-packages directory not found at %s", venv_site_packages)
     sys.exit(1)
 
 # Import F' modules
@@ -113,11 +115,11 @@ class PortAdapter:
                 # Send heartbeat packet
                 username = "FPrimeAdapter"
                 payload = struct.pack('>H', len(username)) + username.encode()
-                beat_msg = MAC_BCAST + self.mac_addr + ETYPE_BEAT + payload
+                beat_msg = ETYPE_BEAT + payload
                 self.msg_send(beat_msg)
-                logging.debug("Sent heartbeat: %s", mac2str(self.mac_addr))
+                LOGGER.debug("Sent heartbeat: %s", mac2str(self.mac_addr))
             except Exception as e:
-                logging.warning("Heartbeat failed: %s", e)
+                LOGGER.warning("Heartbeat failed: %s", e)
             time.sleep(1.0)  # Send heartbeat every second
 
     def msg_send(self, data):
@@ -168,7 +170,7 @@ class SerialAdapter(PortAdapter):
         super().disconnect()
         if self.slip_port:
             self.slip_port.close()
-            logging.info("Disconnected from %s", self.port)
+            LOGGER.info("Disconnected from %s", self.port)
 
     def msg_send(self, data):
         """Send data over serial with SLIP encoding.
@@ -180,16 +182,18 @@ class SerialAdapter(PortAdapter):
             bool: successfully sent message over UART
         """
         try:
-            self.slip_port.msg_send(data)
+            frame = MAC_BCAST + self.mac_addr + data
+            # Send using SLIP port
+            self.slip_port.msg_send(frame)
             return True
         except Exception as e:
-            logging.error("Failed to send data: %s", e)
+            LOGGER.error("Failed to send data: %s", e)
             self.disconnect()
             return False
 
     def _rx_loop(self):
         """Main loop for serial receive thread."""
-        logging.info(f"Starting serial receive loop on {self.port}")
+        LOGGER.info("Starting serial receive loop on %s", self.port)
         while self._rx_run:
             time.sleep(0.1)  # Keep thread alive
 
@@ -235,7 +239,7 @@ class EthernetAdapter(PortAdapter):
         super().disconnect()
         if self.eth_port:
             self.eth_port.close()
-            logging.info("Disconnected from %s", self.port)
+            LOGGER.info("Disconnected from %s", self.port)
 
     def msg_send(self, data):
         """Send data over ethernet.
@@ -247,16 +251,18 @@ class EthernetAdapter(PortAdapter):
             bool: successfully sent message over ethernet
         """
         try:
-            self.eth_port.msg_send(data)
+            frame = MAC_BCAST + self.mac_addr + data
+            # Send using Ethernet port
+            self.eth_port.msg_send(frame)
             return True
         except Exception as e:
-            logging.error("Failed to send data: %s", e)
+            LOGGER.error("Failed to send data: %s", e)
             self.disconnect()
             return False
 
     def _rx_loop(self):
         """Main loop for Ethernet receive thread."""
-        logging.info(f"Starting Ethernet receive loop on {self.port}")
+        LOGGER.info("Starting Ethernet receive loop on %s", self.port)
         while self._rx_run:
             time.sleep(0.1)  # Keep thread alive
 
@@ -396,4 +402,13 @@ def format_command_data(template, args):
     arg_str = " ".join(args)
     arg_data = arg_str.encode()
     
-    return descriptor + opcode + arg_data 
+    data = descriptor + opcode + arg_data
+    
+        # Format F' command data with length prefix
+    cmd_len = struct.pack('>H', len(data))
+    payload = cmd_len + data
+    
+    # Create frame with proper MAC addresses and EtherType
+    frame = ETYPE_FPRIME + payload
+    
+    return frame

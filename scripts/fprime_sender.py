@@ -154,7 +154,6 @@ def get_command_help_string(template):
 def main():
     """Main function to parse arguments and run the commander."""
     parser = argparse.ArgumentParser(description='Send F\' commands over serial')
-    parser.add_argument('project_path', help='Path to the F\' project directory')
     parser.add_argument('deployment_folder', help='Name of the deployment folder')
     parser.add_argument('--port', default='/dev/ttyUSB0', help='Serial port (default: /dev/ttyUSB0)')
     parser.add_argument('--baud', type=int, default=921600, help='Baud rate (default: 921600)')
@@ -165,7 +164,7 @@ def main():
     dictionaries = Dictionaries()
     
     # Load dictionaries
-    dictionary_path = os.path.join(args.project_path, f"build-artifacts/Linux/{args.deployment_folder}/dict/{args.deployment_folder}TopologyAppDictionary.xml")
+    dictionary_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), f"build-artifacts/Linux/{args.deployment_folder}/dict/{args.deployment_folder}TopologyAppDictionary.xml")
     if not os.path.exists(dictionary_path):
         LOGGER.error(f"Dictionary file not found at {dictionary_path}")
         sys.exit(1)

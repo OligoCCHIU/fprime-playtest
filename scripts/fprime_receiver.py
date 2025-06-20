@@ -17,7 +17,7 @@ import time
 
 # Import common functionality
 from adapter_common import (
-    create_adapter, setup_logging, load_dictionaries, SATCAT5_CONFIG, U32Type
+    create_adapter, setup_logging, load_dictionaries, SATCAT5_CONFIG, U32Type, BAUD_RATE
 )
 
 # Configure basic logging
@@ -26,7 +26,7 @@ LOGGER = logging.getLogger("FPrimeReceiver")
 class FPrimeReceiver:
     """Class to handle receiving and processing F' command frames."""
     
-    def __init__(self, port_type, port, dictionary_path, baud_rate=921600):
+    def __init__(self, port_type, port, dictionary_path, baud_rate=BAUD_RATE):
         """Initialize FPrimeReceiver.
         
         Args:
@@ -43,7 +43,7 @@ class FPrimeReceiver:
         try:
             self.dictionaries = load_dictionaries(dictionary_path)
         except Exception as e:
-            LOGGER.error(f"Failed to load dictionaries: {e}")
+            LOGGER.error("Failed to load dictionaries: %s", e)
             sys.exit(1)
 
         # Create port adapter
@@ -51,7 +51,7 @@ class FPrimeReceiver:
             self.adapter = create_adapter(port_type, port, baud_rate)
             self.adapter.set_callback(self._process_data)
         except Exception as e:
-            LOGGER.error(f"Failed to initialize port: {e}")
+            LOGGER.error("Failed to initialize port: %s", e)
             sys.exit(1)
 
     def _unpack_command(self, payload):
@@ -92,7 +92,7 @@ class FPrimeReceiver:
             
             # Get command template from opcode
             if opcode not in self.dictionaries.command_id:
-                LOGGER.error(f"Unknown command opcode: {hex(opcode)}")
+                LOGGER.error("Unknown command opcode: %s", hex(opcode))
                 return None, None
                 
             template = self.dictionaries.command_id[opcode]
@@ -103,13 +103,13 @@ class FPrimeReceiver:
             
             # Format command as component.mnemonic
             command_name = f"{template.get_component()}.{template.get_mnemonic()}"
-            LOGGER.info(f"Decoded command: {command_name} (opcode: {hex(opcode)})")
+            LOGGER.info("Decoded command: %s (opcode: %s)", command_name, hex(opcode))
             
             return command_name, args
             
         except Exception as e:
-            LOGGER.error(f"Error unpacking command: {e}")
-            LOGGER.debug(f"Payload hex: {payload.hex()}")
+            LOGGER.error("Error unpacking command: %s", e)
+            LOGGER.debug("Payload hex: %s", payload.hex())
             return None, None
 
     def _execute_fprime_cli(self, command_name, arguments=None):
@@ -125,15 +125,15 @@ class FPrimeReceiver:
                 cmd.extend(['--arguments'] + [str(arg) for arg in arguments])
             cmd.extend(['--dictionary', self.dictionary_path])
             
-            LOGGER.info(f"Executing: {' '.join(cmd)}")
+            LOGGER.info("Executing: %s", ' '.join(cmd))
             result = subprocess.run(cmd, capture_output=True, text=True)
             
             if result.returncode == 0:
-                LOGGER.info(f"Command executed successfully: {result.stdout}")
+                LOGGER.info("Command executed successfully: %s", result.stdout)
             else:
-                LOGGER.error(f"Command failed: {result.stderr}")
+                LOGGER.error("Command failed: %s", result.stderr)
         except Exception as e:
-            LOGGER.error(f"Error executing command: {e}")
+            LOGGER.error("Error executing command: %s", e)
 
     def _process_data(self, data):
         """Process received data.
@@ -142,19 +142,19 @@ class FPrimeReceiver:
             data (bytes): Received data from port
         """
         # Log packet details for debugging
-        LOGGER.debug(f"Received data: {data.hex()}")
+        LOGGER.debug("Received data: %s", data.hex())
         
         # Unpack command
         command_name, arguments = self._unpack_command(data)
         if command_name:
-            LOGGER.info(f"Received command: {command_name}")
+            LOGGER.info("Received command: %s", command_name)
             if arguments:
-                LOGGER.info(f"Arguments: {arguments}")
+                LOGGER.info("Arguments: %s", arguments)
             self._execute_fprime_cli(command_name, arguments)
 
     def start(self):
         """Start listening for data."""
-        LOGGER.info(f"Starting to listen on {self.port} ({self.port_type}) for F' commands...")
+        LOGGER.info("Starting to listen on %s (%s) for F' commands...", self.port, self.port_type)
         try:
             # Keep main thread alive
             while True:
@@ -167,14 +167,13 @@ class FPrimeReceiver:
 def main():
     """Main function to parse arguments and run the receiver."""
     parser = argparse.ArgumentParser(description='Receive and process F\' commands from serial or Ethernet')
+    parser.add_argument('deployment_folder', help='Name of the deployment folder')
     parser.add_argument('--port-type', choices=['serial', 'ethernet'], default='ethernet',
                       help='Type of port to use (default: ethernet)')
     parser.add_argument('--port', default='eth0',
                       help='Port name (default: eth0 for Ethernet, /dev/ttyUSB0 for serial)')
-    parser.add_argument('--baud', type=int, default=921600,
+    parser.add_argument('--baud', type=int, default=BAUD_RATE,
                       help='Baud rate for serial port (default: 921600)')
-    parser.add_argument('--dictionary', required=True,
-                      help='Path to the F\' dictionary XML file')
     parser.add_argument('--debug', action='store_true',
                       help='Enable debug logging')
     args = parser.parse_args()
@@ -187,7 +186,7 @@ def main():
     activate_script = os.path.join(venv_path, 'bin', 'activate')
     
     if not os.path.exists(activate_script):
-        LOGGER.error(f"Virtual environment not found at {venv_path}")
+        LOGGER.error("Virtual environment not found at %s", venv_path)
         sys.exit(1)
     
     # Set environment variables
@@ -195,9 +194,11 @@ def main():
     os.environ['PATH'] = os.path.join(venv_path, 'bin') + os.pathsep + os.environ.get('PATH', '')
     os.environ['PYTHONPATH'] = os.path.join(venv_path, 'lib/python3.10/site-packages') + os.pathsep + os.environ.get('PYTHONPATH', '')
     
-    LOGGER.info(f"Activated virtual environment at {venv_path}")
+    LOGGER.info("Activated virtual environment at %s", venv_path)
+    
+    dictionary_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), f"build-artifacts/Linux/{args.deployment_folder}/dict/{args.deployment_folder}TopologyAppDictionary.xml")
 
-    receiver = FPrimeReceiver(args.port_type, args.port, args.dictionary, args.baud)
+    receiver = FPrimeReceiver(args.port_type, args.port, dictionary_path, args.baud)
     receiver.start()
 
 if __name__ == "__main__":
